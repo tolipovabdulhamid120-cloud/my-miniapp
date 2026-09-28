@@ -3,450 +3,300 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Yotoqxona Online Davomati</title>
+  <title>Yotoqxona Davomati</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- SheetJS (Excel bilan ishlash) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
-    :root {
-      --bg-color: var(--tg-theme-bg-color, #f0f2f5);
-      --text-color: var(--tg-theme-text-color, #1a1a1a);
-      --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
-      --primary-color: var(--tg-theme-button-color, #2481cc);
-      --primary-text: var(--tg-theme-button-text-color, #ffffff);
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 12px;
-      box-sizing: border-box;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
-
-    .user-badge {
-      background: #eef7ff;
-      border: 1px solid #b8daff;
-      text-align: center;
-      padding: 8px;
-      border-radius: 10px;
-      font-size: 13px;
-      margin-bottom: 12px;
-      color: #004085;
-    }
-
-    h2 { margin: 0 0 10px 0; font-size: 18px; text-align: center; }
-    h3 { margin: 0 0 10px 0; font-size: 15px; color: #555; }
-
-    .date-picker-box {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .date-picker-box label { font-weight: bold; font-size: 14px; }
-    .date-picker-box input {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-
-    .duty-box {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      background: rgba(36, 129, 204, 0.08);
-      padding: 8px 10px;
-      border-radius: 8px;
-    }
-
-    .duty-box label { font-size: 13px; font-weight: bold; color: var(--primary-color); white-space: nowrap; }
-    .duty-box input {
-      flex: 1;
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 13px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      text-align: center;
-    }
-
-    .stat-item {
-      background: rgba(0,0,0,0.03);
-      padding: 8px;
-      border-radius: 8px;
-    }
-    .stat-item .val { font-size: 18px; font-weight: bold; }
-    .stat-item .lbl { font-size: 11px; opacity: 0.7; }
-
-    .form-row {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    input[type="text"] {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
-    }
-
-    button {
-      border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-primary { background: var(--primary-color); color: var(--primary-text); }
-    .btn-excel-import { background: #0078d4; color: #fff; width: 100%; margin-bottom: 6px; display: block; text-align: center; box-sizing: border-box; }
-    .btn-excel-export { background: #107c41; color: #fff; width: 100%; margin-top: 10px; }
-
-    .student-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .student-item:last-child { border-bottom: none; }
-
-    .student-info { flex: 1; }
-    .student-name { font-weight: 600; font-size: 14px; }
-
-    .toggle-btns { display: flex; gap: 4px; align-items: center; }
-
-    .btn-status {
-      padding: 6px 10px;
-      font-size: 12px;
-      border-radius: 6px;
-      opacity: 0.4;
-    }
-    .btn-status.active { opacity: 1; transform: scale(1.03); }
-    .btn-present { background: #28a745; color: white; }
-    .btn-absent { background: #dc3545; color: white; }
-
-    .btn-archive {
-      background: #ff9800;
-      color: white;
-      font-size: 11px;
-      padding: 6px 8px;
-      border-radius: 6px;
-    }
-
-    .btn-restore {
-      background: #0078d4;
-      color: white;
-      font-size: 12px;
-      padding: 6px 10px;
-      border-radius: 6px;
-    }
-
-    .btn-del {
-      background: #dc3545;
-      color: white;
-      font-size: 12px;
-      padding: 6px 8px;
-      border-radius: 6px;
-    }
-
-    #excelFileInput { display: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-  <!-- Foydalanuvchi Boshqaruvi Paneli -->
-  <div class="user-badge" id="userInfo">
-    Yuklanmoqda...
-  </div>
+  <!-- Header -->
+  <header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-50">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-bold">🏫 Yotoqxona Davomati</h1>
+        <p id="userInfo" class="text-xs text-indigo-200">Foydalanuvchi aniqlanmoqda...</p>
+      </div>
+      <div id="adminBadge" class="hidden bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow">
+        Admin 🛡️
+      </div>
+    </div>
+  </header>
 
-  <div class="card">
-    <h2>🏢 Yotoqxona Davomati (Onlayn)</h2>
+  <!-- Main Container -->
+  <main class="max-w-md mx-auto p-4 w-full flex-grow space-y-4 pb-20">
     
-    <div class="date-picker-box">
-      <label for="attDate">Sana:</label>
-      <input type="date" id="attDate" onchange="renderList()">
-    </div>
-
-    <!-- Navbatchi O'qituvchi Qismi -->
-    <div class="duty-box">
-      <label for="dutyTeacher">👨‍🏫 Navbatchi:</label>
-      <input type="text" id="dutyTeacher" placeholder="O'qituvchi F.I.Sh." onchange="saveDutyTeacher()">
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-item">
-        <div class="val" id="totalCnt">0</div>
-        <div class="lbl">Aktiv o'quvchilar</div>
+    <!-- Controls Card -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Sana:</label>
+        <input type="date" id="dateInput" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
       </div>
-      <div class="stat-item" style="color: #28a745;">
-        <div class="val" id="presentCnt">0</div>
-        <div class="lbl">Bor</div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Navbatchi o'qituvchi:</label>
+        <input type="text" id="dutyTeacher" placeholder="Ism familiyangizni kiriting" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
       </div>
-      <div class="stat-item" style="color: #dc3545;">
-        <div class="val" id="absentCnt">0</div>
-        <div class="lbl">Yo'q</div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="markAll('present')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium py-2 px-3 rounded-lg text-xs transition">Hamma kelgan</button>
+        <button onclick="markAll('absent')" class="bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium py-2 px-3 rounded-lg text-xs transition">Hamma kelmagan</button>
       </div>
     </div>
-  </div>
 
-  <!-- Admin Boshqaruvi Card'i (Faqat Adminlarga Ko'rinadi) -->
-  <div class="card" id="adminAddCard" style="display: none;">
-    <h3>⚙️ Admin Boshqaruvi: O'quvchi Qo'shish</h3>
-    <div class="form-row">
-      <input type="text" id="stuName" style="flex:1;" placeholder="O'quvchi F.I.Sh.">
-      <button class="btn-primary" onclick="addStudent()">+</button>
+    <!-- Admin Panel (Only for Admins) -->
+    <div id="adminPanel" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3 shadow-sm">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi</h2>
+      <div class="flex gap-2">
+        <input type="text" id="newStudentName" placeholder="Yangi o'quvchi F.I.Sh." class="flex-grow border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
+        <button onclick="addStudent()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Qo'shish</button>
+      </div>
     </div>
 
-    <label for="excelFileInput" class="button btn-excel-import">📥 Excel'dan ro'yxat yuklash</label>
-    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="importFromExcel(event)">
-  </div>
-
-  <!-- Aktiv Davomat Ro'yxati -->
-  <div class="card">
-    <h3>📋 Kunlik Davomat Ro'yxati</h3>
-    <div id="studentList">
-      <p style="text-align:center; color:#888;">Yuklanmoqda...</p>
+    <!-- Students List -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">O'quvchilar ro'yxati</span>
+        <span id="studentCount" class="text-xs text-slate-400 font-medium">0 ta</span>
+      </div>
+      <div id="studentsContainer" class="divide-y divide-slate-100 max-h-[40vh] overflow-y-auto">
+        <!-- JS orqali to'ldiriladi -->
+      </div>
     </div>
-    <button class="btn-excel-export" onclick="exportToExcel()">📊 Davomatni Excel'ga yuklab olish (.xlsx)</button>
-  </div>
 
-  <!-- Yotoqxonadan Chiqib Ketganlar (Arxiv) -->
-  <div class="card" style="background: #fafafa; border: 1px dashed #ccc;">
-    <h3>🚪 Yotoqxonadan chiqib ketganlar (<span id="archivedCnt">0</span>)</h3>
-    <div id="archivedList"></div>
-  </div>
+    <!-- Actions / Export -->
+    <div class="space-y-2 pt-2">
+      <button onclick="saveData()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+        <span>💾 Saqlash va Sinxronizatsiya</span>
+      </button>
+      <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+        <span>📊 Excel'ga yuklab olish</span>
+      </button>
+    </div>
 
+    <!-- Archived Students Section (Admin) -->
+    <div id="archivedSection" class="hidden pt-4">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Arxivlangan o'quvchilar</h3>
+      <div id="archivedContainer" class="bg-white rounded-xl border border-slate-100 p-3 space-y-2"></div>
+    </div>
+
+  </main>
+
+  <!-- Script Logic -->
   <script>
-    const tg = window.Telegram ? window.Telegram.WebApp : null;
-    if (tg) tg.expand();
-
-    // 🔴 1. ADMIN TELEGRAM ID RAQAMLARI RO'YXATI:
-    // O'zingiz va boshqa admin bo'ladigan xodimlarning Telegram ID raqamlarini shu yerga yozasiz.
-    // Bir nechta admin bo'lsa vergul bilan ajratib yozing, masalan: [12345678, 87654321]
-    const ADMIN_IDS = [8081723573]; 
-
-    // Foydalanuvchi Telegram ID si aniqlash
-    const currentUser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
-    const currentUserId = currentUser ? currentUser.id : null;
-    
-    // Adminlikni tekshirish (Agar Telegram'siz oddiy brauzerda ochilsa ham test uchun admin qiladi)
-    let isAdmin = false;
-    if (currentUserId) {
-      isAdmin = ADMIN_IDS.includes(currentUserId);
-      document.getElementById('userInfo').innerHTML = `👤 ID: <b>${currentUserId}</b> | Rol: <b>${isAdmin ? '👑 Admin' : '👨‍🏫 O\'qituvchi'}</b>`;
-    } else {
-      isAdmin = true; // Test rejimida brauzer uchun
-      document.getElementById('userInfo').innerHTML = `🌐 Brauzer testi | Rol: <b>👑 Admin (To'liq kirish)</b>`;
-    }
-
-    // Admin panelini ko'rsatish/yashirish
-    if (isAdmin) {
-      document.getElementById('adminAddCard').style.display = 'block';
-    }
-
-    // Firebase Bazangiz Sozlamasi
+    // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
       databaseURL: "https://yotoqxona-18a80-default-rtdb.firebaseio.com"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const dateInput = document.getElementById('attDate');
-    const dutyInput = document.getElementById('dutyTeacher');
-    dateInput.value = new Date().toISOString().split('T')[0];
+    // --- ADMIN TELEGRAM IDs ---
+    const ADMIN_IDS = [123456789, 987654321]; // O'zingizning Telegram ID raqamingizni shu yerga yozing
+
+    // --- TELEGRAM WEB APP INIT ---
+    let tg = window.Telegram.WebApp;
+    tg.expand();
+
+    let currentUser = { id: null, firstName: "Mehmon" };
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      currentUser.id = tg.initDataUnsafe.user.id;
+      currentUser.firstName = tg.initDataUnsafe.user.first_name;
+    } else {
+      // Test uchun fallback ID
+      currentUser.id = 123456789; 
+    }
+
+    const isAdmin = ADMIN_IDS.includes(currentUser.id);
+    document.getElementById("userInfo").innerText = `👤 ID: ${currentUser.id} | ${currentUser.firstName}`;
+    if (isAdmin) {
+      document.getElementById("adminBadge").classList.remove("hidden");
+      document.getElementById("adminPanel").classList.remove("hidden");
+      document.getElementById("archivedSection").classList.remove("hidden");
+    }
+
+    // Date & UI elements
+    const dateInput = document.getElementById("dateInput");
+    const dutyTeacherInput = document.getElementById("dutyTeacher");
+    const studentsContainer = document.getElementById("studentsContainer");
+    const archivedContainer = document.getElementById("archivedContainer");
+    const studentCountEl = document.getElementById("studentCount");
+
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
 
     let studentsData = {};
     let attendanceData = {};
     let dutyTeachersData = {};
 
-    // Bazani real vaqtda tinglash
-    db.ref().on('value', (snapshot) => {
-      const data = snapshot.val() || {};
-      studentsData = data.students || {};
-      attendanceData = data.attendance || {};
-      dutyTeachersData = data.dutyTeachers || {};
-      renderList();
+    // --- FIREBASE LISTENERS ---
+    db.ref("students").on("value", (snapshot) => {
+      studentsData = snapshot.val() || {};
+      renderStudents();
     });
 
-    // Navbatchi o'qituvchini saqlash
-    function saveDutyTeacher() {
+    db.ref("dutyTeachers").on("value", (snapshot) => {
+      dutyTeachersData = snapshot.val() || {};
+      updateDutyTeacherInput();
+    });
+
+    db.ref("attendance").on("value", (snapshot) => {
+      attendanceData = snapshot.val() || {};
+      renderStudents();
+    });
+
+    dateInput.addEventListener("change", () => {
+      updateDutyTeacherInput();
+      renderStudents();
+    });
+
+    dutyTeacherInput.addEventListener("input", (e) => {
       const curDate = dateInput.value;
-      const name = dutyInput.value.trim();
-      db.ref(`dutyTeachers/${curDate}`).set(name);
+      dutyTeachersData[curDate] = e.target.value;
+      db.ref("dutyTeachers/" + curDate).set(e.target.value);
+    });
+
+    function updateDutyTeacherInput() {
+      const curDate = dateInput.value;
+      dutyTeacherInput.value = dutyTeachersData[curDate] || "";
     }
 
-    function addStudent() {
-      if (!isAdmin) return alert("Faqat admin o'quvchi qo'sha oladi!");
-      const nameInput = document.getElementById('stuName');
-      const name = nameInput.value.trim();
-      if (!name) return alert("O'quvchi ismini kiriting!");
+    // --- RENDER STUDENTS ---
+    function renderStudents() {
+      studentsContainer.innerHTML = "";
+      archivedContainer.innerHTML = "";
+      
+      const curDate = dateInput.value;
+      const dailyAttendance = (attendanceData && attendanceData[curDate]) || {};
+      
+      const studentIds = Object.keys(studentsData);
+      studentCountEl.innerText = `${studentIds.filter(id => !studentsData[id].archived).length} ta`;
 
-      const newId = Date.now();
-      db.ref('students/' + newId).set({ name: name, archived: false });
-      nameInput.value = '';
+      if (studentIds.length === 0) {
+        studentsContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">Hozircha o'quvchilar yo'q.</div>`;
+        return;
+      }
+
+      let activeCount = 0;
+      let archivedCount = 0;
+
+      studentIds.forEach(id => {
+        const student = studentsData[id];
+        const status = dailyAttendance[id] || 'present';
+
+        if (student.archived) {
+          archivedCount++;
+          if (isAdmin) {
+            archivedContainer.innerHTML += `
+              <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg">
+                <span class="text-slate-500 line-through">${student.name}</span>
+                <div class="flex gap-2">
+                  <button onclick="restoreStudent('${id}')" class="text-emerald-600 font-medium">Tiklash</button>
+                  <button onclick="deleteStudent('${id}')" class="text-rose-600 font-medium">O'chirish</button>
+                </div>
+              </div>`;
+          }
+          return;
+        }
+
+        activeCount++;
+        let statusBadge = status === 'present' 
+          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-1 rounded">Bor</span>`
+          : `<span class="bg-rose-100 text-rose-800 text-[10px] font-semibold px-2 py-1 rounded">Yo'q</span>`;
+
+        studentsContainer.innerHTML += `
+          <div class="p-3 flex items-center justify-between hover:bg-slate-50/50 transition">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-bold text-slate-400 w-5">${activeCount}.</span>
+              <span class="text-sm font-medium text-slate-700">${student.name}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleStatus('${id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${status === 'present' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-slate-200 text-slate-600'}">
+                ${status === 'present' ? 'Bor' : "Yo'q"}
+              </button>
+              ${isAdmin ? `
+                <button onclick="archiveStudent('${id}')" class="text-slate-400 hover:text-amber-600 p-1" title="Arxivlash">📦</button>
+              ` : ''}
+            </div>
+          </div>`;
+      });
+
+      if (archivedCount === 0 && isAdmin) {
+        archivedContainer.innerHTML = `<span class="text-xs text-slate-400">Arxiv bo'sh.</span>`;
+      }
+    }
+
+    // --- ATTENDANCE ACTIONS ---
+    function toggleStatus(id) {
+      const curDate = dateInput.value;
+      if (!attendanceData[curDate]) attendanceData[curDate] = {};
+      
+      const currentStatus = attendanceData[curDate][id] || 'present';
+      attendanceData[curDate][id] = currentStatus === 'present' ? 'absent' : 'present';
+      renderStudents();
+    }
+
+    function markAll(status) {
+      const curDate = dateInput.value;
+      if (!attendanceData[curDate]) attendanceData[curDate] = {};
+      
+      Object.keys(studentsData).forEach(id => {
+        if (!studentsData[id].archived) {
+          attendanceData[curDate][id] = status;
+        }
+      });
+      renderStudents();
+    }
+
+    // --- ADMIN ACTIONS ---
+    function addStudent() {
+      if (!isAdmin) return alert("Ruxsat etilmagan!");
+      const nameInput = document.getElementById("newStudentName");
+      const name = nameInput.value.trim();
+      if (!name) return alert("Ism kiriting!");
+
+      const newRef = db.ref("students").push();
+      newRef.set({ name: name, archived: false });
+      nameInput.value = "";
     }
 
     function archiveStudent(id) {
-      if (!isAdmin) return alert("Faqat admin o'quvchini arxivlay oladi!");
-      if (confirm("Ushbu o'quvchini yotoqxonadan chiqib ketdi deb belgilaysizmi?")) {
-        db.ref(`students/${id}/archived`).set(true);
+      if (!isAdmin) return;
+      if (confirm("Haqiqatan ham bu o'quvchini arxivlamoqchimisiz?")) {
+        db.ref("students/" + id + "/archived").set(true);
       }
     }
 
     function restoreStudent(id) {
-      if (!isAdmin) return alert("Faqat admin o'quvchini qaytara oladi!");
-      db.ref(`students/${id}/archived`).set(false);
+      if (!isAdmin) return;
+      db.ref("students/" + id + "/archived").set(false);
     }
 
     function deleteStudent(id) {
-      if (!isAdmin) return alert("Faqat admin o'quvchini o'chira oladi!");
-      if (confirm("Ushbu o'quvchini bazadan butunlay o'chirmoqchimisiz?")) {
-        db.ref('students/' + id).remove();
+      if (!isAdmin) return;
+      if (confirm("O'quvchini butunlay o'chirib yuborishni tasdiqlaysizmi?")) {
+        db.ref("students/" + id).remove();
       }
     }
 
-    function setStatus(stuId, status) {
+    // --- SAVE TO FIREBASE ---
+    function saveData() {
       const curDate = dateInput.value;
-      db.ref(`attendance/${curDate}/${stuId}`).set(status);
+      db.ref("attendance/" + curDate).set(attendanceData[curDate] || {})
+        .then(() => alert("Ma'lumotlar muvaffaqiyatli saqlandi va sinxronizatsiya qilindi!"))
+        .catch(err => alert("Xatolik: " + err.message));
     }
 
-    function renderList() {
-      const curDate = dateInput.value;
-      
-      dutyInput.value = dutyTeachersData[curDate] || '';
-
-      const curAtt = attendanceData[curDate] || {};
-      const listDiv = document.getElementById('studentList');
-      const archivedDiv = document.getElementById('archivedList');
-      
-      listDiv.innerHTML = '';
-      archivedDiv.innerHTML = '';
-
-      const studentIds = Object.keys(studentsData);
-      let activeCount = 0;
-      let archivedCount = 0;
-      let presentCnt = 0;
-      let absentCnt = 0;
-
-      studentIds.forEach(id => {
-        const stu = studentsData[id];
-
-        if (stu.archived) {
-          archivedCount++;
-          const item = document.createElement('div');
-          item.className = 'student-item';
-          item.innerHTML = `
-            <div class="student-info">
-              <div class="student-name" style="text-decoration: line-through; color: #888;">${stu.name}</div>
-            </div>
-            <div class="toggle-btns">
-              ${isAdmin ? `<button class="btn-restore" onclick="restoreStudent('${id}')">🔄 Qaytarish</button>` : ''}
-              ${isAdmin ? `<button class="btn-del" onclick="deleteStudent('${id}')">🗑️ O'chirish</button>` : ''}
-            </div>
-          `;
-          archivedDiv.appendChild(item);
-        } else {
-          activeCount++;
-          const status = curAtt[id] || 'present';
-          if (status === 'present') presentCnt++;
-          if (status === 'absent') absentCnt++;
-
-          const item = document.createElement('div');
-          item.className = 'student-item';
-          item.innerHTML = `
-            <div class="student-info">
-              <div class="student-name">${stu.name}</div>
-            </div>
-            <div class="toggle-btns">
-              <button class="btn-status btn-present ${status === 'present' ? 'active' : ''}" onclick="setStatus('${id}', 'present')">Bor</button>
-              <button class="btn-status btn-absent ${status === 'absent' ? 'active' : ''}" onclick="setStatus('${id}', 'absent')">Yo'q</button>
-              ${isAdmin ? `<button class="btn-archive" onclick="archiveStudent('${id}')">🚪 Chiqdi</button>` : ''}
-              ${isAdmin ? `<button class="btn-del" onclick="deleteStudent('${id}')">🗑️</button>` : ''}
-            </div>
-          `;
-          listDiv.appendChild(item);
-        }
-      });
-
-      if (activeCount === 0) {
-        listDiv.innerHTML = '<p style="text-align:center; color:#888;">Aktiv o\'quvchilar yo\'q.</p>';
-      }
-      if (archivedCount === 0) {
-        archivedDiv.innerHTML = '<p style="text-align:center; color:#aaa; font-size: 13px;">Chiqib ketganlar yo\'q.</p>';
-      }
-
-      document.getElementById('totalCnt').innerText = activeCount;
-      document.getElementById('presentCnt').innerText = presentCnt;
-      document.getElementById('absentCnt').innerText = absentCnt;
-      document.getElementById('archivedCnt').innerText = archivedCount;
-    }
-
-    // Excel import
-    function importFromExcel(event) {
-      if (!isAdmin) return alert("Faqat admin Excel yuklay oladi!");
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-          let addedCount = 0;
-          jsonData.forEach((row, index) => {
-            const name = row[0] ? String(row[0]).trim() : (row[1] ? String(row[1]).trim() : '');
-            if (name && !name.toLowerCase().includes('f.i.sh') && !name.toLowerCase().includes('ismi')) {
-              const newId = Date.now() + index;
-              db.ref('students/' + newId).set({ name: name, archived: false });
-              addedCount++;
-            }
-          });
-
-          if (addedCount > 0) {
-            alert(`${addedCount} ta o'quvchi bazaga yuklandi!`);
-          } else {
-            alert("Fayldan ismlar topilmadi. O'quvchilar F.I.Sh. Excel'ning A yoki B ustunidaligini tekshiring.");
-          }
-        } catch (err) {
-          alert("Excel faylni o'qishda xatolik: " + err.message);
-        }
-        event.target.value = '';
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    // Excel export
+    // --- EXCEL EXPORT ---
     function exportToExcel() {
       let excelData = [];
       const dates = Object.keys(attendanceData).sort();
@@ -480,10 +330,25 @@
         });
       }
 
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
-      XLSX.writeFile(workbook, `Yotoqxona_Davomati_${dateInput.value}.xlsx`);
+      try {
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
+        
+        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: "application/octet-stream" });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Yotoqxona_Davomati_${dateInput.value}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) {
+        alert("Excel'ga yuklashda xatolik yuz berdi: " + err.message);
+      }
     }
   </script>
 </body>
