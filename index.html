@@ -1,14 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Yotoqxona Davomati</title>
+  <title>Yotoqxona Online Davomati</title>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- SheetJS (Excel yuklash kutubxonasi) -->
+  <!-- SheetJS (Excel bilan ishlash) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Firebase SDK (Onlayn Ma'lumotlar Bazasi) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
   <style>
     :root {
       --bg-color: var(--tg-theme-bg-color, #f0f2f5);
@@ -71,7 +74,7 @@
     .form-row {
       display: flex;
       gap: 6px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     input[type="text"] {
@@ -83,8 +86,6 @@
       outline: none;
     }
 
-    .room-input { width: 80px !important; flex: none !important; }
-
     button {
       border: none;
       border-radius: 8px;
@@ -95,7 +96,8 @@
     }
 
     .btn-primary { background: var(--primary-color); color: var(--primary-text); }
-    .btn-excel { background: #107c41; color: #fff; width: 100%; margin-top: 10px; }
+    .btn-excel-import { background: #0078d4; color: #fff; width: 100%; margin-bottom: 6px; display: block; text-align: center; box-sizing: border-box; }
+    .btn-excel-export { background: #107c41; color: #fff; width: 100%; margin-top: 10px; }
 
     .student-item {
       display: flex;
@@ -108,7 +110,6 @@
 
     .student-info { flex: 1; }
     .student-name { font-weight: 600; font-size: 14px; }
-    .student-room { font-size: 12px; color: #666; }
 
     .toggle-btns { display: flex; gap: 6px; align-items: center; }
 
@@ -128,16 +129,19 @@
       font-size: 14px;
       padding: 4px 6px;
     }
+
+    /* Yashirin fayl yuklash inputi */
+    #excelFileInput { display: none; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>🏢 Yotoqxona Davomati</h2>
+    <h2>🏢 Yotoqxona Davomati (Onlayn)</h2>
     
     <div class="date-picker-box">
       <label for="attDate">Sana:</label>
-      <input type="date" id="attDate" onchange="loadAttendance()">
+      <input type="date" id="attDate" onchange="renderList()">
     </div>
 
     <div class="stats-grid">
@@ -159,84 +163,84 @@
   <div class="card">
     <div class="form-row">
       <input type="text" id="stuName" placeholder="O'quvchi F.I.Sh.">
-      <input type="text" id="stuRoom" class="room-input" placeholder="Xona">
       <button class="btn-primary" onclick="addStudent()">+</button>
     </div>
+
+    <!-- Excel yuklash tugmasi -->
+    <label for="excelFileInput" class="button btn-excel-import">📥 Excel'dan o'quvchilar ro'yxatini yuklash</label>
+    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="importFromExcel(event)">
   </div>
 
   <div class="card">
-    <div id="studentList"></div>
-    <button class="btn-excel" onclick="exportToExcel()">📊 Excel ga yuklab olish (.xlsx)</button>
+    <div id="studentList">
+      <p style="text-align:center; color:#888;">Yuklanmoqda...</p>
+    </div>
+    <button class="btn-excel-export" onclick="exportToExcel()">📊 Davomatni Excel'ga yuklab olish (.xlsx)</button>
   </div>
 
   <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) tg.expand();
 
+    // 1. Firebase Sozlamalari (Bepul Baza)
+    const firebaseConfig = {
+      databaseURL: "https://yotoqxona-davomat-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const dateInput = document.getElementById('attDate');
     dateInput.value = new Date().toISOString().split('T')[0];
 
-    let students = JSON.parse(localStorage.getItem('yt_students')) || [
-      { id: 1, name: "Sardor Salimov", room: "101" },
-      { id: 2, name: "Bekzod Rustamov", room: "102" }
-    ];
+    let studentsData = {};
+    let attendanceData = {};
 
-    let attendance = JSON.parse(localStorage.getItem('yt_attendance')) || {};
-
-    function saveStudents() {
-      localStorage.setItem('yt_students', JSON.stringify(students));
-    }
-
-    function saveAttendance() {
-      localStorage.setItem('yt_attendance', JSON.stringify(attendance));
-    }
+    // Base dan real vaqt rejimida ma'lumotlarni tinglash
+    db.ref().on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      studentsData = data.students || {};
+      attendanceData = data.attendance || {};
+      renderList();
+    });
 
     function addStudent() {
       const nameInput = document.getElementById('stuName');
-      const roomInput = document.getElementById('stuRoom');
       const name = nameInput.value.trim();
-      const room = roomInput.value.trim() || '---';
-
       if (!name) return alert("O'quvchi ismini kiriting!");
 
-      students.push({ id: Date.now(), name, room });
+      const newId = Date.now();
+      db.ref('students/' + newId).set({ name: name });
       nameInput.value = '';
-      roomInput.value = '';
-      saveStudents();
-      loadAttendance();
     }
 
     function deleteStudent(id) {
       if (confirm("Ushbu o'quvchini o'chirmoqchimisiz?")) {
-        students = students.filter(s => s.id !== id);
-        saveStudents();
-        loadAttendance();
+        db.ref('students/' + id).remove();
       }
     }
 
     function setStatus(stuId, status) {
       const curDate = dateInput.value;
-      if (!attendance[curDate]) attendance[curDate] = {};
-      attendance[curDate][stuId] = status;
-      saveAttendance();
-      loadAttendance();
+      db.ref(`attendance/${curDate}/${stuId}`).set(status);
     }
 
-    function loadAttendance() {
+    function renderList() {
       const curDate = dateInput.value;
-      const curAtt = attendance[curDate] || {};
+      const curAtt = attendanceData[curDate] || {};
       const listDiv = document.getElementById('studentList');
       listDiv.innerHTML = '';
 
+      const studentIds = Object.keys(studentsData);
       let presentCnt = 0;
       let absentCnt = 0;
 
-      if (students.length === 0) {
-        listDiv.innerHTML = '<p style="text-align:center; color:#888;">O\'quvchilar yo\'q. Yuqorida yangi o\'quvchi qo\'shing.</p>';
+      if (studentIds.length === 0) {
+        listDiv.innerHTML = '<p style="text-align:center; color:#888;">O\'quvchilar yo\'q. Qo\'lda yoki Excel orqali kiriting.</p>';
       }
 
-      students.forEach(stu => {
-        const status = curAtt[stu.id] || 'present';
+      studentIds.forEach(id => {
+        const stu = studentsData[id];
+        const status = curAtt[id] || 'present';
         if (status === 'present') presentCnt++;
         if (status === 'absent') absentCnt++;
 
@@ -245,44 +249,74 @@
         item.innerHTML = `
           <div class="student-info">
             <div class="student-name">${stu.name}</div>
-            <div class="student-room">🏢 Xona: ${stu.room}</div>
           </div>
           <div class="toggle-btns">
-            <button class="btn-status btn-present ${status === 'present' ? 'active' : ''}" onclick="setStatus(${stu.id}, 'present')">Bor</button>
-            <button class="btn-status btn-absent ${status === 'absent' ? 'active' : ''}" onclick="setStatus(${stu.id}, 'absent')">Yo'q</button>
-            <button class="btn-del" onclick="deleteStudent(${stu.id})">✕</button>
+            <button class="btn-status btn-present ${status === 'present' ? 'active' : ''}" onclick="setStatus('${id}', 'present')">Bor</button>
+            <button class="btn-status btn-absent ${status === 'absent' ? 'active' : ''}" onclick="setStatus('${id}', 'absent')">Yo'q</button>
+            <button class="btn-del" onclick="deleteStudent('${id}')">✕</button>
           </div>
         `;
         listDiv.appendChild(item);
       });
 
-      document.getElementById('totalCnt').innerText = students.length;
+      document.getElementById('totalCnt').innerText = studentIds.length;
       document.getElementById('presentCnt').innerText = presentCnt;
       document.getElementById('absentCnt').innerText = absentCnt;
     }
 
+    // 2. Excel Fayldan O'quvchilarni Import Qilish
+    function importFromExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        let addedCount = 0;
+        jsonData.forEach((row, index) => {
+          const name = row[0] ? String(row[0]).trim() : (row[1] ? String(row[1]).trim() : '');
+          if (name && !name.toLowerCase().includes('f.i.sh') && !name.toLowerCase().includes('ismi') && !name.toLowerCase().includes('o\'quvchi')) {
+            const newId = Date.now() + index;
+            db.ref('students/' + newId).set({ name: name });
+            addedCount++;
+          }
+        });
+
+        alert(`${addedCount} ta o'quvchi muvaffaqiyatli qo'shildi!`);
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 3. Davomatni Excel ga Yuklab Olish (Export)
     function exportToExcel() {
       let excelData = [];
-      const dates = Object.keys(attendance).sort();
+      const dates = Object.keys(attendanceData).sort();
+      const studentIds = Object.keys(studentsData);
+
+      if (studentIds.length === 0) return alert("Eksport qilish uchun o'quvchilar yo'q!");
 
       if (dates.length === 0) {
         const curDate = dateInput.value;
-        students.forEach(s => {
+        studentIds.forEach(id => {
           excelData.push({
             "Sana": curDate,
-            "Xona №": s.room,
-            "F.I.Sh.": s.name,
+            "F.I.Sh.": studentsData[id].name,
             "Holati": "Bor"
           });
         });
       } else {
         dates.forEach(d => {
-          students.forEach(s => {
-            const status = attendance[d] && attendance[d][s.id] ? attendance[d][s.id] : 'present';
+          studentIds.forEach(id => {
+            const status = attendanceData[d] && attendanceData[d][id] ? attendanceData[d][id] : 'present';
             excelData.push({
               "Sana": d,
-              "Xona №": s.room,
-              "F.I.Sh.": s.name,
+              "F.I.Sh.": studentsData[id].name,
               "Holati": status === 'present' ? 'Bor' : "Yo'q"
             });
           });
@@ -291,11 +325,9 @@
 
       const worksheet = XLSX.utils.json_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Yotoqxona Davomati");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
       XLSX.writeFile(workbook, `Yotoqxona_Davomati_${dateInput.value}.xlsx`);
     }
-
-    loadAttendance();
   </script>
 </body>
 </html>
