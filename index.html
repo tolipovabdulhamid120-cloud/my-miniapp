@@ -33,7 +33,7 @@
   </header>
 
   <!-- Main Container -->
-  <main class="max-w-md mx-auto p-4 w-full flex-grow space-y-4 pb-20">
+  <main class="max-w-md mx-auto p-4 w-full flex-grow space-y-4 pb-32">
     
     <!-- Controls Card -->
     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
@@ -55,10 +55,10 @@
 
     <!-- Admin Panel (Only for Admins) -->
     <div id="adminPanel" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3 shadow-sm">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi (O'quvchi qo'shish)</h2>
       <div class="flex gap-2">
         <input type="text" id="newStudentName" placeholder="Yangi o'quvchi F.I.Sh." class="flex-grow border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
-        <button onclick="addStudent()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Qo'shish</button>
+        <button onclick="addStudent()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">Qo'shish</button>
       </div>
     </div>
 
@@ -85,7 +85,7 @@
 
     <!-- Archived Students Section (Admin) -->
     <div id="archivedSection" class="hidden pt-4">
-      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Arxivlangan o'quvchilar</h3>
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">📦 Arxivlangan o'quvchilar</h3>
       <div id="archivedContainer" class="bg-white rounded-xl border border-slate-100 p-3 space-y-2"></div>
     </div>
 
@@ -101,7 +101,7 @@
     const db = firebase.database();
 
     // --- ADMIN TELEGRAM IDs ---
-    const ADMIN_IDS = [123456789, 987654321]; // O'zingizning Telegram ID raqamingizni shu yerga yozing
+    const ADMIN_IDS = [8081723573]; // Sizning Telegram ID raqamingiz admin
 
     // --- TELEGRAM WEB APP INIT ---
     let tg = window.Telegram.WebApp;
@@ -112,12 +112,12 @@
       currentUser.id = tg.initDataUnsafe.user.id;
       currentUser.firstName = tg.initDataUnsafe.user.first_name;
     } else {
-      // Test uchun fallback ID
-      currentUser.id = 123456789; 
+      currentUser.id = 8081723573; // Test uchun fallback
     }
 
-    const isAdmin = ADMIN_IDS.includes(currentUser.id);
+    const isAdmin = ADMIN_IDS.includes(Number(currentUser.id));
     document.getElementById("userInfo").innerText = `👤 ID: ${currentUser.id} | ${currentUser.firstName}`;
+    
     if (isAdmin) {
       document.getElementById("adminBadge").classList.remove("hidden");
       document.getElementById("adminPanel").classList.remove("hidden");
@@ -179,10 +179,12 @@
       const dailyAttendance = (attendanceData && attendanceData[curDate]) || {};
       
       const studentIds = Object.keys(studentsData);
-      studentCountEl.innerText = `${studentIds.filter(id => !studentsData[id].archived).length} ta`;
+      const activeStudentsCount = studentIds.filter(id => !studentsData[id].archived).length;
+      studentCountEl.innerText = `${activeStudentsCount} ta`;
 
       if (studentIds.length === 0) {
         studentsContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">Hozircha o'quvchilar yo'q.</div>`;
+        if (archivedContainer) archivedContainer.innerHTML = `<span class="text-xs text-slate-400">Arxiv bo'sh.</span>`;
         return;
       }
 
@@ -197,11 +199,11 @@
           archivedCount++;
           if (isAdmin) {
             archivedContainer.innerHTML += `
-              <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg">
-                <span class="text-slate-500 line-through">${student.name}</span>
+              <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <span class="text-slate-500 line-through font-medium">${student.name}</span>
                 <div class="flex gap-2">
-                  <button onclick="restoreStudent('${id}')" class="text-emerald-600 font-medium">Tiklash</button>
-                  <button onclick="deleteStudent('${id}')" class="text-rose-600 font-medium">O'chirish</button>
+                  <button onclick="restoreStudent('${id}')" class="text-emerald-600 font-semibold hover:underline">Tiklash</button>
+                  <button onclick="deleteStudent('${id}')" class="text-rose-600 font-semibold hover:underline">O'chirish</button>
                 </div>
               </div>`;
           }
@@ -209,10 +211,6 @@
         }
 
         activeCount++;
-        let statusBadge = status === 'present' 
-          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-1 rounded">Bor</span>`
-          : `<span class="bg-rose-100 text-rose-800 text-[10px] font-semibold px-2 py-1 rounded">Yo'q</span>`;
-
         studentsContainer.innerHTML += `
           <div class="p-3 flex items-center justify-between hover:bg-slate-50/50 transition">
             <div class="flex items-center gap-3">
@@ -224,7 +222,7 @@
                 ${status === 'present' ? 'Bor' : "Yo'q"}
               </button>
               ${isAdmin ? `
-                <button onclick="archiveStudent('${id}')" class="text-slate-400 hover:text-amber-600 p-1" title="Arxivlash">📦</button>
+                <button onclick="archiveStudent('${id}')" class="text-slate-400 hover:text-amber-600 p-1 text-sm font-bold" title="Arxivlash">📦</button>
               ` : ''}
             </div>
           </div>`;
@@ -262,11 +260,14 @@
       if (!isAdmin) return alert("Ruxsat etilmagan!");
       const nameInput = document.getElementById("newStudentName");
       const name = nameInput.value.trim();
-      if (!name) return alert("Ism kiriting!");
+      if (!name) return alert("O'quvchi ismini kiriting!");
 
       const newRef = db.ref("students").push();
-      newRef.set({ name: name, archived: false });
-      nameInput.value = "";
+      newRef.set({ name: name, archived: false })
+        .then(() => {
+          nameInput.value = "";
+        })
+        .catch(err => alert("Xatolik: " + err.message));
     }
 
     function archiveStudent(id) {
@@ -283,7 +284,7 @@
 
     function deleteStudent(id) {
       if (!isAdmin) return;
-      if (confirm("O'quvchini butunlay o'chirib yuborishni tasdiqlaysizmi?")) {
+      if (confirm("O'quvchini bazadan butunlay o'chirib yuborishni tasdiqlaysizmi?")) {
         db.ref("students/" + id).remove();
       }
     }
