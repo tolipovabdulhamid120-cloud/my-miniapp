@@ -38,6 +38,17 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
 
+    .user-badge {
+      background: #eef7ff;
+      border: 1px solid #b8daff;
+      text-align: center;
+      padding: 8px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      color: #004085;
+    }
+
     h2 { margin: 0 0 10px 0; font-size: 18px; text-align: center; }
     h3 { margin: 0 0 10px 0; font-size: 15px; color: #555; }
 
@@ -171,6 +182,11 @@
 </head>
 <body>
 
+  <!-- Foydalanuvchi Boshqaruvi Paneli -->
+  <div class="user-badge" id="userInfo">
+    Yuklanmoqda...
+  </div>
+
   <div class="card">
     <h2>🏢 Yotoqxona Davomati (Onlayn)</h2>
     
@@ -201,7 +217,9 @@
     </div>
   </div>
 
-  <div class="card">
+  <!-- Admin Boshqaruvi Card'i (Faqat Adminlarga Ko'rinadi) -->
+  <div class="card" id="adminAddCard" style="display: none;">
+    <h3>⚙️ Admin Boshqaruvi: O'quvchi Qo'shish</h3>
     <div class="form-row">
       <input type="text" id="stuName" style="flex:1;" placeholder="O'quvchi F.I.Sh.">
       <button class="btn-primary" onclick="addStudent()">+</button>
@@ -229,6 +247,30 @@
   <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) tg.expand();
+
+    // 🔴 1. ADMIN TELEGRAM ID RAQAMLARI RO'YXATI:
+    // O'zingiz va boshqa admin bo'ladigan xodimlarning Telegram ID raqamlarini shu yerga yozasiz.
+    // Bir nechta admin bo'lsa vergul bilan ajratib yozing, masalan: [12345678, 87654321]
+    const ADMIN_IDS = [123456789]; 
+
+    // Foydalanuvchi Telegram ID si aniqlash
+    const currentUser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+    const currentUserId = currentUser ? currentUser.id : null;
+    
+    // Adminlikni tekshirish (Agar Telegram'siz oddiy brauzerda ochilsa ham test uchun admin qiladi)
+    let isAdmin = false;
+    if (currentUserId) {
+      isAdmin = ADMIN_IDS.includes(currentUserId);
+      document.getElementById('userInfo').innerHTML = `👤 ID: <b>${currentUserId}</b> | Rol: <b>${isAdmin ? '👑 Admin' : '👨‍🏫 O\'qituvchi'}</b>`;
+    } else {
+      isAdmin = true; // Test rejimida brauzer uchun
+      document.getElementById('userInfo').innerHTML = `🌐 Brauzer testi | Rol: <b>👑 Admin (To'liq kirish)</b>`;
+    }
+
+    // Admin panelini ko'rsatish/yashirish
+    if (isAdmin) {
+      document.getElementById('adminAddCard').style.display = 'block';
+    }
 
     // Firebase Bazangiz Sozlamasi
     const firebaseConfig = {
@@ -262,6 +304,7 @@
     }
 
     function addStudent() {
+      if (!isAdmin) return alert("Faqat admin o'quvchi qo'sha oladi!");
       const nameInput = document.getElementById('stuName');
       const name = nameInput.value.trim();
       if (!name) return alert("O'quvchi ismini kiriting!");
@@ -272,16 +315,19 @@
     }
 
     function archiveStudent(id) {
+      if (!isAdmin) return alert("Faqat admin o'quvchini arxivlay oladi!");
       if (confirm("Ushbu o'quvchini yotoqxonadan chiqib ketdi deb belgilaysizmi?")) {
         db.ref(`students/${id}/archived`).set(true);
       }
     }
 
     function restoreStudent(id) {
+      if (!isAdmin) return alert("Faqat admin o'quvchini qaytara oladi!");
       db.ref(`students/${id}/archived`).set(false);
     }
 
     function deleteStudent(id) {
+      if (!isAdmin) return alert("Faqat admin o'quvchini o'chira oladi!");
       if (confirm("Ushbu o'quvchini bazadan butunlay o'chirmoqchimisiz?")) {
         db.ref('students/' + id).remove();
       }
@@ -322,8 +368,8 @@
               <div class="student-name" style="text-decoration: line-through; color: #888;">${stu.name}</div>
             </div>
             <div class="toggle-btns">
-              <button class="btn-restore" onclick="restoreStudent('${id}')">🔄 Qaytarish</button>
-              <button class="btn-del" onclick="deleteStudent('${id}')">🗑️ O'chirish</button>
+              ${isAdmin ? `<button class="btn-restore" onclick="restoreStudent('${id}')">🔄 Qaytarish</button>` : ''}
+              ${isAdmin ? `<button class="btn-del" onclick="deleteStudent('${id}')">🗑️ O'chirish</button>` : ''}
             </div>
           `;
           archivedDiv.appendChild(item);
@@ -342,8 +388,8 @@
             <div class="toggle-btns">
               <button class="btn-status btn-present ${status === 'present' ? 'active' : ''}" onclick="setStatus('${id}', 'present')">Bor</button>
               <button class="btn-status btn-absent ${status === 'absent' ? 'active' : ''}" onclick="setStatus('${id}', 'absent')">Yo'q</button>
-              <button class="btn-archive" onclick="archiveStudent('${id}')">🚪 Chiqdi</button>
-              <button class="btn-del" onclick="deleteStudent('${id}')">🗑️</button>
+              ${isAdmin ? `<button class="btn-archive" onclick="archiveStudent('${id}')">🚪 Chiqdi</button>` : ''}
+              ${isAdmin ? `<button class="btn-del" onclick="deleteStudent('${id}')">🗑️</button>` : ''}
             </div>
           `;
           listDiv.appendChild(item);
@@ -365,6 +411,7 @@
 
     // Excel import
     function importFromExcel(event) {
+      if (!isAdmin) return alert("Faqat admin Excel yuklay oladi!");
       const file = event.target.files[0];
       if (!file) return;
 
