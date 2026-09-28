@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mening Mini Appim</title>
+    <!-- Telegram JS Kutubxonasi -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .box {
+            padding: 20px;
+            border-radius: 12px;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            width: 80%;
+            max-width: 300px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2 id="greeting">Salom!</h2>
+        <p>Sizning Telegram ID: <strong id="user-id">...</strong></p>
+        <button onclick="salomBer()">Tugmani bosing</button>
+    </div>
+
+    <script>
+        // Telegram WebApp obyektini faollashtirish
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand(); // Oynani to'liq ekranga yoyish
+
+        // Telegram foydalanuvchi ma'lumotlarini o'qish
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            document.getElementById('greeting').innerText = "Salom, " + tg.initDataUnsafe.user.first_name + "!";
+            document.getElementById('user-id').innerText = tg.initDataUnsafe.user.id;
+        }
+
+        function salomBer() {
+            tg.showAlert("Tabriklaymiz! Sizning birinchi Telegram Mini App'ingiz ishlamoqda!");
+        }
+    </script>
+</body>
+</html>
