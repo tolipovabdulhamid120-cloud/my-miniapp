@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- SheetJS for Excel Export -->
+  <!-- SheetJS for Excel Import/Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -56,9 +56,21 @@
     <!-- Admin Panel (Only for Admins) -->
     <div id="adminPanel" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3 shadow-sm">
       <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi (O'quvchi qo'shish)</h2>
+      
+      <!-- Bittalab qo'shish -->
       <div class="flex gap-2">
         <input type="text" id="newStudentName" placeholder="Yangi o'quvchi F.I.Sh." class="flex-grow border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
         <button onclick="addStudent()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">Qo'shish</button>
+      </div>
+
+      <!-- Excel'dan o'quvchilarni import qilish -->
+      <div class="pt-2 border-t border-amber-200/60">
+        <label class="block text-xs font-medium text-amber-900 mb-1">Excel fayldan o'quvchilar ro'yxatini yuklash:</label>
+        <div class="flex gap-2 items-center">
+          <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
+          <button onclick="importFromExcel()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap">Import</button>
+        </div>
+        <p class="text-[10px] text-amber-700 mt-1">Excel faylning 1-ustunida yoki "F.I.Sh." ustunida o'quvchilar ismi bo'lishi kerak.</p>
       </div>
     </div>
 
@@ -79,7 +91,7 @@
         <span>💾 Saqlash va Sinxronizatsiya</span>
       </button>
       <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-        <span>📊 Excel'ga yuklab olish</span>
+        <span>📊 Davomatni Excel'ga yuklab olish</span>
       </button>
     </div>
 
@@ -107,12 +119,10 @@
     let tg = window.Telegram.WebApp;
     tg.expand();
 
-    let currentUser = { id: null, firstName: "Mehmon" };
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    let currentUser = { id: 8081723573, firstName: "Admin" };
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
       currentUser.id = tg.initDataUnsafe.user.id;
-      currentUser.firstName = tg.initDataUnsafe.user.first_name;
-    } else {
-      currentUser.id = 8081723573; // Test uchun fallback
+      currentUser.firstName = tg.initDataUnsafe.user.first_name || "Mehmon";
     }
 
     const isAdmin = ADMIN_IDS.includes(Number(currentUser.id));
@@ -268,6 +278,48 @@
           nameInput.value = "";
         })
         .catch(err => alert("Xatolik: " + err.message));
+    }
+
+    // --- IMPORT FROM EXCEL ---
+    function importFromExcel() {
+      if (!isAdmin) return alert("Ruxsat etilmagan!");
+      const fileInput = document.getElementById("excelFile");
+      const file = fileInput.files[0];
+      if (!file) return alert("Iltimos, Excel faylni tanlang!");
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          let addedCount = 0;
+          jsonRows.forEach(row => {
+            // Har bir qatordagi matnli ustunlarni qidirib topamiz
+            row.forEach(cell => {
+              if (cell && typeof cell === 'string') {
+                const trimmed = cell.trim();
+                // Sarlavha yoki raqamlarni tashlab yuborish uchun shart
+                if (trimmed.length > 3 && !trimmed.toLowerCase().includes('f.i.sh') && !trimmed.toLowerCase().includes('ism') && !trimmed.toLowerCase().includes('sana')) {
+                  // Bazaga qo'shish
+                  const newRef = db.ref("students").push();
+                  newRef.set({ name: trimmed, archived: false });
+                  addedCount++;
+                }
+              }
+            });
+          });
+
+          alert(`${addedCount} ta o'quvchi muvaffaqiyatli import qilindi!`);
+          fileInput.value = "";
+        } catch (err) {
+          alert("Excel faylni o'qishda xatolik yuz berdi: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
     }
 
     function archiveStudent(id) {
