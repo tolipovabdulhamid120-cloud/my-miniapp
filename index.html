@@ -159,10 +159,11 @@
     }
 
     .btn-del {
-      background: transparent;
-      color: #999;
-      font-size: 14px;
-      padding: 4px 6px;
+      background: #dc3545;
+      color: white;
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 6px;
     }
 
     #excelFileInput { display: none; }
@@ -322,7 +323,7 @@
             </div>
             <div class="toggle-btns">
               <button class="btn-restore" onclick="restoreStudent('${id}')">🔄 Qaytarish</button>
-              <button class="btn-del" onclick="deleteStudent('${id}')">✕</button>
+              <button class="btn-del" onclick="deleteStudent('${id}')">🗑️ O'chirish</button>
             </div>
           `;
           archivedDiv.appendChild(item);
@@ -342,6 +343,7 @@
               <button class="btn-status btn-present ${status === 'present' ? 'active' : ''}" onclick="setStatus('${id}', 'present')">Bor</button>
               <button class="btn-status btn-absent ${status === 'absent' ? 'active' : ''}" onclick="setStatus('${id}', 'absent')">Yo'q</button>
               <button class="btn-archive" onclick="archiveStudent('${id}')">🚪 Chiqdi</button>
+              <button class="btn-del" onclick="deleteStudent('${id}')">🗑️</button>
             </div>
           `;
           listDiv.appendChild(item);
