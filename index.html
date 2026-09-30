@@ -70,7 +70,7 @@
           <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
           <button onclick="importFromExcel()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap">Import</button>
         </div>
-        <p class="text-[10px] text-amber-700 mt-1">Excel faylning 1-ustunida yoki "F.I.Sh." ustunida o'quvchilar ismi bo'lishi kerak.</p>
+        <p class="text-[10px] text-amber-700 mt-1">Excel faylning birinchi mos kelgan ustunidagi ismlar olinadi.</p>
       </div>
     </div>
 
@@ -113,14 +113,14 @@
     const db = firebase.database();
 
     // --- ADMIN TELEGRAM IDs ---
-    const ADMIN_IDS = [8081723573]; // Sizning Telegram ID raqamingiz admin
+    const ADMIN_IDS = [8081723573];
 
     // --- TELEGRAM WEB APP INIT ---
-    let tg = window.Telegram.WebApp;
-    tg.expand();
+    let tg = window.Telegram ? window.Telegram.WebApp : null;
+    if (tg) tg.expand();
 
     let currentUser = { id: 8081723573, firstName: "Admin" };
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
       currentUser.id = tg.initDataUnsafe.user.id;
       currentUser.firstName = tg.initDataUnsafe.user.first_name || "Mehmon";
     }
@@ -228,7 +228,7 @@
               <span class="text-sm font-medium text-slate-700">${student.name}</span>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="toggleStatus('${id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${status === 'present' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-slate-200 text-slate-600'}">
+              <button onclick="toggleStatus('${id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${status === 'present' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-rose-500 text-white shadow-sm'}">
                 ${status === 'present' ? 'Bor' : "Yo'q"}
               </button>
               ${isAdmin ? `
@@ -243,26 +243,26 @@
       }
     }
 
-    // --- ATTENDANCE ACTIONS ---
+    // --- ATTENDANCE ACTIONS (Direct Realtime Update) ---
     function toggleStatus(id) {
       const curDate = dateInput.value;
-      if (!attendanceData[curDate]) attendanceData[curDate] = {};
+      const currentStatus = (attendanceData[curDate] && attendanceData[curDate][id]) || 'present';
+      const newStatus = currentStatus === 'present' ? 'absent' : 'present';
       
-      const currentStatus = attendanceData[curDate][id] || 'present';
-      attendanceData[curDate][id] = currentStatus === 'present' ? 'absent' : 'present';
-      renderStudents();
+      db.ref(`attendance/${curDate}/${id}`).set(newStatus);
     }
 
     function markAll(status) {
       const curDate = dateInput.value;
-      if (!attendanceData[curDate]) attendanceData[curDate] = {};
+      const updates = {};
       
       Object.keys(studentsData).forEach(id => {
         if (!studentsData[id].archived) {
-          attendanceData[curDate][id] = status;
+          updates[`attendance/${curDate}/${id}`] = status;
         }
       });
-      renderStudents();
+      
+      db.ref().update(updates);
     }
 
     // --- ADMIN ACTIONS ---
@@ -280,7 +280,7 @@
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- IMPORT FROM EXCEL ---
+    // --- IMPORT FROM EXCEL (Tuzatildi) ---
     function importFromExcel() {
       if (!isAdmin) return alert("Ruxsat etilmagan!");
       const fileInput = document.getElementById("excelFile");
@@ -298,19 +298,20 @@
 
           let addedCount = 0;
           jsonRows.forEach(row => {
-            // Har bir qatordagi matnli ustunlarni qidirib topamiz
-            row.forEach(cell => {
-              if (cell && typeof cell === 'string') {
-                const trimmed = cell.trim();
-                // Sarlavha yoki raqamlarni tashlab yuborish uchun shart
-                if (trimmed.length > 3 && !trimmed.toLowerCase().includes('f.i.sh') && !trimmed.toLowerCase().includes('ism') && !trimmed.toLowerCase().includes('sana')) {
-                  // Bazaga qo'shish
-                  const newRef = db.ref("students").push();
-                  newRef.set({ name: trimmed, archived: false });
-                  addedCount++;
-                }
-              }
-            });
+            const studentNameCell = row.find(cell => 
+              cell && typeof cell === 'string' && 
+              cell.trim().length > 3 && 
+              !cell.toLowerCase().includes('f.i.sh') && 
+              !cell.toLowerCase().includes('ism') && 
+              !cell.toLowerCase().includes('sana')
+            );
+
+            if (studentNameCell) {
+              const trimmed = studentNameCell.trim();
+              const newRef = db.ref("students").push();
+              newRef.set({ name: trimmed, archived: false });
+              addedCount++;
+            }
           });
 
           alert(`${addedCount} ta o'quvchi muvaffaqiyatli import qilindi!`);
@@ -344,12 +345,19 @@
     // --- SAVE TO FIREBASE ---
     function saveData() {
       const curDate = dateInput.value;
-      db.ref("attendance/" + curDate).set(attendanceData[curDate] || {})
+      const currentDutyTeacher = dutyTeacherInput.value.trim();
+      
+      const promises = [
+        db.ref("attendance/" + curDate).set(attendanceData[curDate] || {}),
+        db.ref("dutyTeachers/" + curDate).set(currentDutyTeacher)
+      ];
+
+      Promise.all(promises)
         .then(() => alert("Ma'lumotlar muvaffaqiyatli saqlandi va sinxronizatsiya qilindi!"))
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- EXCEL EXPORT ---
+    // --- EXCEL EXPORT (To'liq tuzatildi) ---
     function exportToExcel() {
       let excelData = [];
       const dates = Object.keys(attendanceData).sort();
@@ -388,19 +396,26 @@
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
         
-        const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: "application/octet-stream" });
-        
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Yotoqxona_Davomati_${dateInput.value}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const fileName = `Yotoqxona_Davomati_${dateInput.value}.xlsx`;
+
+        // 1-USUL: SheetJS standart writeFile usuli
+        XLSX.writeFile(workbook, fileName);
+
       } catch (err) {
-        alert("Excel'ga yuklashda xatolik yuz berdi: " + err.message);
+        // 2-USUL: Telegram Web App ichida faylni Data URL orqali yuklash (Zaxira usuli)
+        try {
+          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+          const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + wbout;
+          
+          const downloadLink = document.createElement("a");
+          downloadLink.href = uri;
+          downloadLink.download = fileName;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        } catch (backupErr) {
+          alert("Excel'ga yuklashda xatolik yuz berdi: " + backupErr.message);
+        }
       }
     }
   </script>
