@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- SheetJS for Excel Import/Export -->
+  <!-- SheetJS for Excel Import -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -70,7 +70,7 @@
           <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
           <button onclick="importFromExcel()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap">Import</button>
         </div>
-        <p class="text-[10px] text-amber-700 mt-1">Excel faylning birinchi mos kelgan ustunidagi ismlar olinadi.</p>
+        <p class="text-[10px] text-amber-700 mt-1">Excel fayldan o'quvchilar ismini avtomattik o'qiydi.</p>
       </div>
     </div>
 
@@ -85,13 +85,15 @@
       </div>
     </div>
 
-    <!-- Actions / Export -->
+    <!-- Actions / Copy for Google Sheets -->
     <div class="space-y-2 pt-2">
       <button onclick="saveData()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
         <span>💾 Saqlash va Sinxronizatsiya</span>
       </button>
-      <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-        <span>📊 Davomatni Excel'ga yuklab olish</span>
+
+      <!-- Google Sheets uchun nusxalash tugmasi -->
+      <button onclick="copyForGoogleSheets()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+        <span>📋 Google Sheets uchun nusxalash (Copy)</span>
       </button>
     </div>
 
@@ -243,7 +245,7 @@
       }
     }
 
-    // --- ATTENDANCE ACTIONS (Direct Realtime Update) ---
+    // --- ATTENDANCE ACTIONS ---
     function toggleStatus(id) {
       const curDate = dateInput.value;
       const currentStatus = (attendanceData[curDate] && attendanceData[curDate][id]) || 'present';
@@ -280,7 +282,7 @@
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- IMPORT FROM EXCEL (Tuzatildi) ---
+    // --- IMPORT FROM EXCEL ---
     function importFromExcel() {
       if (!isAdmin) return alert("Ruxsat etilmagan!");
       const fileInput = document.getElementById("excelFile");
@@ -357,66 +359,66 @@
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- EXCEL EXPORT (To'liq tuzatildi) ---
-    function exportToExcel() {
-      let excelData = [];
-      const dates = Object.keys(attendanceData).sort();
+    // --- COPY FOR GOOGLE SHEETS (Yangi va 100% ishlaydigan usul) ---
+    function copyForGoogleSheets() {
       const activeStudentIds = Object.keys(studentsData).filter(id => !studentsData[id].archived);
 
-      if (activeStudentIds.length === 0) return alert("Eksport qilish uchun o'quvchilar yo'q!");
+      if (activeStudentIds.length === 0) {
+        return alert("Nusxalash uchun o'quvchilar yo'q!");
+      }
+
+      const dates = Object.keys(attendanceData).sort();
+      let tsvText = "";
+
+      // 1-qatorda sarlavhalar (Tab belgilari bilan ajratiladi)
+      tsvText += "Sana\tNavbatchi O'qituvchi\tO'quvchi F.I.Sh.\tHolati\n";
 
       if (dates.length === 0) {
         const curDate = dateInput.value;
         const dutyTeacherName = dutyTeachersData[curDate] || "Kiritilmagan";
         activeStudentIds.forEach(id => {
-          excelData.push({
-            "Sana": curDate,
-            "Navbatchi O'qituvchi": dutyTeacherName,
-            "O'quvchi F.I.Sh.": studentsData[id].name,
-            "Holati": "Bor"
-          });
+          tsvText += `${curDate}\t${dutyTeacherName}\t${studentsData[id].name}\tBor\n`;
         });
       } else {
         dates.forEach(d => {
           const dutyTeacherName = dutyTeachersData[d] || "Kiritilmagan";
           activeStudentIds.forEach(id => {
             const status = attendanceData[d] && attendanceData[d][id] ? attendanceData[d][id] : 'present';
-            excelData.push({
-              "Sana": d,
-              "Navbatchi O'qituvchi": dutyTeacherName,
-              "O'quvchi F.I.Sh.": studentsData[id].name,
-              "Holati": status === 'present' ? 'Bor' : "Yo'q"
-            });
+            const statusText = status === 'present' ? 'Bor' : "Yo'q";
+            tsvText += `${d}\t${dutyTeacherName}\t${studentsData[id].name}\t${statusText}\n`;
           });
         });
       }
 
-      try {
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
-        
-        const fileName = `Yotoqxona_Davomati_${dateInput.value}.xlsx`;
-
-        // 1-USUL: SheetJS standart writeFile usuli
-        XLSX.writeFile(workbook, fileName);
-
-      } catch (err) {
-        // 2-USUL: Telegram Web App ichida faylni Data URL orqali yuklash (Zaxira usuli)
-        try {
-          const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-          const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + wbout;
-          
-          const downloadLink = document.createElement("a");
-          downloadLink.href = uri;
-          downloadLink.download = fileName;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        } catch (backupErr) {
-          alert("Excel'ga yuklashda xatolik yuz berdi: " + backupErr.message);
-        }
+      // Clipboard-ga nusxalash
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvText)
+          .then(() => {
+            alert("✅ Davomat jadvali nusxalandi!\n\nEndi Google Sheets yoki Excel'ga o'tib 'Joylashtirish' (Paste) tugmasini bosing.");
+          })
+          .catch(err => {
+            fallbackCopyTextToClipboard(tsvText);
+          });
+      } else {
+        fallbackCopyTextToClipboard(tsvText);
       }
+    }
+
+    // Eski qurilmalar uchun zaxira nusxalash mexanizmi
+    function fallbackCopyTextToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert("✅ Davomat jadvali nusxalandi!\n\nEndi Google Sheets yoki Excel'ga o'tib 'Joylashtirish' (Paste) tugmasini bosing.");
+      } catch (err) {
+        alert("Nusxalashda xatolik yuz berdi: " + err);
+      }
+      document.body.removeChild(textArea);
     }
   </script>
 </body>
