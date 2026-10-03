@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- SheetJS for Excel Import -->
+  <!-- SheetJS for Excel Import & Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -47,65 +47,85 @@
         <input type="text" id="dutyTeacher" placeholder="Ism familiyangizni kiriting" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
       </div>
 
+      <!-- Quick Actions -->
       <div class="grid grid-cols-2 gap-2 pt-1">
-        <button onclick="markAll('present')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium py-2 px-3 rounded-lg text-xs transition">Hamma kelgan</button>
-        <button onclick="markAll('absent')" class="bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium py-2 px-3 rounded-lg text-xs transition">Hamma kelmagan</button>
+        <button onclick="markAll('present')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium py-2 px-3 rounded-lg text-xs transition active:scale-95">Hamma kelgan ✅</button>
+        <button onclick="markAll('absent')" class="bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium py-2 px-3 rounded-lg text-xs transition active:scale-95">Hamma kelmagan ❌</button>
       </div>
     </div>
 
-    <!-- Admin Panel (Only for Admins) -->
+    <!-- Statistics Bar -->
+    <div class="grid grid-cols-3 gap-2 text-center text-xs">
+      <div class="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+        <span class="block text-slate-400 font-medium">Jami</span>
+        <span id="statTotal" class="text-base font-bold text-slate-700">0</span>
+      </div>
+      <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 shadow-sm">
+        <span class="block text-emerald-600 font-medium">Bor</span>
+        <span id="statPresent" class="text-base font-bold text-emerald-700">0</span>
+      </div>
+      <div class="bg-rose-50 p-2.5 rounded-xl border border-rose-100 shadow-sm">
+        <span class="block text-rose-600 font-medium">Yo'q</span>
+        <span id="statAbsent" class="text-base font-bold text-rose-700">0</span>
+      </div>
+    </div>
+
+    <!-- Admin Panel -->
     <div id="adminPanel" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3 shadow-sm">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi (O'quvchi qo'shish)</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin Boshqaruvi</h2>
       
-      <!-- Bittalab qo'shish -->
+      <!-- Single Add -->
       <div class="flex gap-2">
         <input type="text" id="newStudentName" placeholder="Yangi o'quvchi F.I.Sh." class="flex-grow border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
         <button onclick="addStudent()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">Qo'shish</button>
       </div>
 
-      <!-- Excel'dan o'quvchilarni import qilish -->
+      <!-- Excel Import -->
       <div class="pt-2 border-t border-amber-200/60">
-        <label class="block text-xs font-medium text-amber-900 mb-1">Excel fayldan o'quvchilar ro'yxatini yuklash:</label>
+        <label class="block text-xs font-medium text-amber-900 mb-1">Excel fayldan yuklash (.xlsx, .xls):</label>
         <div class="flex gap-2 items-center">
           <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
           <button onclick="importFromExcel()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap">Import</button>
         </div>
-        <p class="text-[10px] text-amber-700 mt-1">Excel fayldan o'quvchilar ismini avtomattik o'qiydi.</p>
       </div>
     </div>
 
-    <!-- Students List -->
+    <!-- Search Input & Students List -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">O'quvchilar ro'yxati</span>
-        <span id="studentCount" class="text-xs text-slate-400 font-medium">0 ta</span>
+      <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center gap-2">
+        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Ro'yxat</span>
+        <input type="text" id="searchInput" oninput="renderStudents()" placeholder="🔍 O'quvchini qidirish..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500">
       </div>
-      <div id="studentsContainer" class="divide-y divide-slate-100 max-h-[40vh] overflow-y-auto">
-        <!-- JS orqali to'ldiriladi -->
+      
+      <div id="studentsContainer" class="divide-y divide-slate-100 max-h-[45vh] overflow-y-auto">
+        <!-- Dynamic content -->
       </div>
     </div>
 
-    <!-- Actions / Copy for Google Sheets -->
+    <!-- Actions / Export -->
     <div class="space-y-2 pt-2">
-      <button onclick="saveData()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+      <button onclick="saveData()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-2">
         <span>💾 Saqlash va Sinxronizatsiya</span>
       </button>
 
-      <!-- Google Sheets uchun nusxalash tugmasi -->
-      <button onclick="copyForGoogleSheets()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-        <span>📋 Google Sheets uchun nusxalash (Copy)</span>
-      </button>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-3 rounded-xl shadow-sm transition active:scale-95 text-xs flex items-center justify-center gap-1">
+          <span>📊 Excel fayl yuklash</span>
+        </button>
+        <button onclick="copyForGoogleSheets()" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-3 rounded-xl shadow-sm transition active:scale-95 text-xs flex items-center justify-center gap-1">
+          <span>📋 Sheets uchun nusxalash</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Archived Students Section (Admin) -->
-    <div id="archivedSection" class="hidden pt-4">
+    <!-- Archived Section -->
+    <div id="archivedSection" class="hidden pt-2">
       <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">📦 Arxivlangan o'quvchilar</h3>
       <div id="archivedContainer" class="bg-white rounded-xl border border-slate-100 p-3 space-y-2"></div>
     </div>
 
   </main>
 
-  <!-- Script Logic -->
   <script>
     // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
@@ -128,7 +148,7 @@
     }
 
     const isAdmin = ADMIN_IDS.includes(Number(currentUser.id));
-    document.getElementById("userInfo").innerText = `👤 ID: ${currentUser.id} | ${currentUser.firstName}`;
+    document.getElementById("userInfo").innerText = `👤 ${currentUser.firstName} (ID: ${currentUser.id})`;
     
     if (isAdmin) {
       document.getElementById("adminBadge").classList.remove("hidden");
@@ -136,12 +156,12 @@
       document.getElementById("archivedSection").classList.remove("hidden");
     }
 
-    // Date & UI elements
+    // Elements
     const dateInput = document.getElementById("dateInput");
     const dutyTeacherInput = document.getElementById("dutyTeacher");
     const studentsContainer = document.getElementById("studentsContainer");
     const archivedContainer = document.getElementById("archivedContainer");
-    const studentCountEl = document.getElementById("studentCount");
+    const searchInput = document.getElementById("searchInput");
 
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
@@ -182,26 +202,28 @@
       dutyTeacherInput.value = dutyTeachersData[curDate] || "";
     }
 
-    // --- RENDER STUDENTS ---
+    // --- RENDER STUDENTS & STATS ---
     function renderStudents() {
       studentsContainer.innerHTML = "";
       archivedContainer.innerHTML = "";
       
       const curDate = dateInput.value;
       const dailyAttendance = (attendanceData && attendanceData[curDate]) || {};
-      
+      const searchTerm = searchInput.value.trim().toLowerCase();
+
       const studentIds = Object.keys(studentsData);
-      const activeStudentsCount = studentIds.filter(id => !studentsData[id].archived).length;
-      studentCountEl.innerText = `${activeStudentsCount} ta`;
+      
+      let totalActive = 0;
+      let presentCount = 0;
+      let absentCount = 0;
+      let archivedCount = 0;
 
       if (studentIds.length === 0) {
         studentsContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">Hozircha o'quvchilar yo'q.</div>`;
         if (archivedContainer) archivedContainer.innerHTML = `<span class="text-xs text-slate-400">Arxiv bo'sh.</span>`;
+        updateStats(0, 0, 0);
         return;
       }
-
-      let activeCount = 0;
-      let archivedCount = 0;
 
       studentIds.forEach(id => {
         const student = studentsData[id];
@@ -222,15 +244,23 @@
           return;
         }
 
-        activeCount++;
+        totalActive++;
+        if (status === 'present') presentCount++;
+        else absentCount++;
+
+        // Filter by Search Input
+        if (searchTerm && !student.name.toLowerCase().includes(searchTerm)) {
+          return;
+        }
+
         studentsContainer.innerHTML += `
           <div class="p-3 flex items-center justify-between hover:bg-slate-50/50 transition">
             <div class="flex items-center gap-3">
-              <span class="text-xs font-bold text-slate-400 w-5">${activeCount}.</span>
+              <span class="text-xs font-bold text-slate-400 w-5">${totalActive}.</span>
               <span class="text-sm font-medium text-slate-700">${student.name}</span>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="toggleStatus('${id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${status === 'present' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-rose-500 text-white shadow-sm'}">
+              <button onclick="toggleStatus('${id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95 ${status === 'present' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-rose-500 text-white shadow-sm'}">
                 ${status === 'present' ? 'Bor' : "Yo'q"}
               </button>
               ${isAdmin ? `
@@ -240,9 +270,17 @@
           </div>`;
       });
 
+      updateStats(totalActive, presentCount, absentCount);
+
       if (archivedCount === 0 && isAdmin) {
         archivedContainer.innerHTML = `<span class="text-xs text-slate-400">Arxiv bo'sh.</span>`;
       }
+    }
+
+    function updateStats(total, present, absent) {
+      document.getElementById("statTotal").innerText = total;
+      document.getElementById("statPresent").innerText = present;
+      document.getElementById("statAbsent").innerText = absent;
     }
 
     // --- ATTENDANCE ACTIONS ---
@@ -276,13 +314,10 @@
 
       const newRef = db.ref("students").push();
       newRef.set({ name: name, archived: false })
-        .then(() => {
-          nameInput.value = "";
-        })
+        .then(() => nameInput.value = "")
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- IMPORT FROM EXCEL ---
     function importFromExcel() {
       if (!isAdmin) return alert("Ruxsat etilmagan!");
       const fileInput = document.getElementById("excelFile");
@@ -302,7 +337,7 @@
           jsonRows.forEach(row => {
             const studentNameCell = row.find(cell => 
               cell && typeof cell === 'string' && 
-              cell.trim().length > 3 && 
+              cell.trim().length > 2 && 
               !cell.toLowerCase().includes('f.i.sh') && 
               !cell.toLowerCase().includes('ism') && 
               !cell.toLowerCase().includes('sana')
@@ -319,7 +354,7 @@
           alert(`${addedCount} ta o'quvchi muvaffaqiyatli import qilindi!`);
           fileInput.value = "";
         } catch (err) {
-          alert("Excel faylni o'qishda xatolik yuz berdi: " + err.message);
+          alert("Excel faylni o'qishda xatolik: " + err.message);
         }
       };
       reader.readAsArrayBuffer(file);
@@ -344,7 +379,6 @@
       }
     }
 
-    // --- SAVE TO FIREBASE ---
     function saveData() {
       const curDate = dateInput.value;
       const currentDutyTeacher = dutyTeacherInput.value.trim();
@@ -355,68 +389,70 @@
       ];
 
       Promise.all(promises)
-        .then(() => alert("Ma'lumotlar muvaffaqiyatli saqlandi va sinxronizatsiya qilindi!"))
+        .then(() => alert("✅ Ma'lumotlar saqlandi!"))
         .catch(err => alert("Xatolik: " + err.message));
     }
 
-    // --- COPY FOR GOOGLE SHEETS (Yangi va 100% ishlaydigan usul) ---
+    // --- EXPORT TO EXCEL (.xlsx) ---
+    function exportToExcel() {
+      const curDate = dateInput.value;
+      const activeStudentIds = Object.keys(studentsData).filter(id => !studentsData[id].archived);
+      
+      if (activeStudentIds.length === 0) {
+        return alert("Yuklab olish uchun o'quvchilar topilmadi!");
+      }
+
+      const excelData = activeStudentIds.map((id, index) => {
+        const status = (attendanceData[curDate] && attendanceData[curDate][id]) || 'present';
+        return {
+          "№": index + 1,
+          "Sana": curDate,
+          "Navbatchi O'qituvchi": dutyTeachersData[curDate] || "Kiritilmagan",
+          "O'quvchi F.I.Sh.": studentsData[id].name,
+          "Holati": status === 'present' ? 'Bor' : "Yo'q"
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Davomat");
+
+      XLSX.writeFile(workbook, `Davomat_${curDate}.xlsx`);
+    }
+
+    // --- COPY FOR GOOGLE SHEETS ---
     function copyForGoogleSheets() {
       const activeStudentIds = Object.keys(studentsData).filter(id => !studentsData[id].archived);
+      if (activeStudentIds.length === 0) return alert("Nusxalash uchun o'quvchilar yo'q!");
 
-      if (activeStudentIds.length === 0) {
-        return alert("Nusxalash uchun o'quvchilar yo'q!");
-      }
+      const curDate = dateInput.value;
+      const dutyTeacherName = dutyTeachersData[curDate] || "Kiritilmagan";
+      
+      let tsvText = "Sana\tNavbatchi O'qituvchi\tO'quvchi F.I.Sh.\tHolati\n";
+      activeStudentIds.forEach(id => {
+        const status = (attendanceData[curDate] && attendanceData[curDate][id]) || 'present';
+        tsvText += `${curDate}\t${dutyTeacherName}\t${studentsData[id].name}\t${status === 'present' ? 'Bor' : "Yo'q"}\n`;
+      });
 
-      const dates = Object.keys(attendanceData).sort();
-      let tsvText = "";
-
-      // 1-qatorda sarlavhalar (Tab belgilari bilan ajratiladi)
-      tsvText += "Sana\tNavbatchi O'qituvchi\tO'quvchi F.I.Sh.\tHolati\n";
-
-      if (dates.length === 0) {
-        const curDate = dateInput.value;
-        const dutyTeacherName = dutyTeachersData[curDate] || "Kiritilmagan";
-        activeStudentIds.forEach(id => {
-          tsvText += `${curDate}\t${dutyTeacherName}\t${studentsData[id].name}\tBor\n`;
-        });
-      } else {
-        dates.forEach(d => {
-          const dutyTeacherName = dutyTeachersData[d] || "Kiritilmagan";
-          activeStudentIds.forEach(id => {
-            const status = attendanceData[d] && attendanceData[d][id] ? attendanceData[d][id] : 'present';
-            const statusText = status === 'present' ? 'Bor' : "Yo'q";
-            tsvText += `${d}\t${dutyTeacherName}\t${studentsData[id].name}\t${statusText}\n`;
-          });
-        });
-      }
-
-      // Clipboard-ga nusxalash
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(tsvText)
-          .then(() => {
-            alert("✅ Davomat jadvali nusxalandi!\n\nEndi Google Sheets yoki Excel'ga o'tib 'Joylashtirish' (Paste) tugmasini bosing.");
-          })
-          .catch(err => {
-            fallbackCopyTextToClipboard(tsvText);
-          });
+          .then(() => alert("✅ Nusxalandi! Google Sheets'ga o'tib Ctrl+V bosing."))
+          .catch(() => fallbackCopyTextToClipboard(tsvText));
       } else {
         fallbackCopyTextToClipboard(tsvText);
       }
     }
 
-    // Eski qurilmalar uchun zaxira nusxalash mexanizmi
     function fallbackCopyTextToClipboard(text) {
       const textArea = document.createElement("textarea");
       textArea.value = text;
-      textArea.style.position = "fixed";
       document.body.appendChild(textArea);
-      textArea.focus();
       textArea.select();
       try {
         document.execCommand('copy');
-        alert("✅ Davomat jadvali nusxalandi!\n\nEndi Google Sheets yoki Excel'ga o'tib 'Joylashtirish' (Paste) tugmasini bosing.");
+        alert("✅ Nusxalandi! Google Sheets'ga o'tib Ctrl+V bosing.");
       } catch (err) {
-        alert("Nusxalashda xatolik yuz berdi: " + err);
+        alert("Nusxalashda xatolik: " + err);
       }
       document.body.removeChild(textArea);
     }
