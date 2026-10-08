@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Yotoqxona Davomati</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+<header class="bg-indigo-600 text-white shadow-md p-4 sticky top-0 z-50">
+  <div class="max-w-md mx-auto flex justify-between items-center">
+    <div>
+      <h1 class="text-lg font-bold">🏫 Yotoqxona Davomati</h1>
+      <p id="userInfo" class="text-xs text-indigo-200">Foydalanuvchi aniqlanmoqda...</p>
+    </div>
+    <div id="adminBadge" class="hidden bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow">Admin 🛡️</div>
+  </div>
+</header>
+
+<main class="max-w-md mx-auto p-4 w-full flex-grow space-y-4 pb-32">
+
+  <!-- Bo'limlar -->
+  <div class="grid grid-cols-2 gap-2" id="tabs"></div>
+
+  <!-- Sana va navbatchi -->
+  <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Sana:</label>
+      <input type="date" id="dateInput" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Navbatchi o'qituvchi:</label>
+      <input type="text" id="dutyTeacher" placeholder="Ism familiyangizni kiriting" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    </div>
+    <div class="grid grid-cols-2 gap-2 pt-1">
+      <button onclick="markAll('present')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium py-2 px-3 rounded-lg text-xs active:scale-95">Hamma bor ✅</button>
+      <button onclick="markAll('absent')" class="bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium py-2 px-3 rounded-lg text-xs active:scale-95">Hamma yo'q ❌</button>
+    </div>
+  </div>
+
+  <!-- Statistika -->
+  <div class="grid grid-cols-3 gap-2 text-center text-xs">
+    <div class="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm"><span class="block text-slate-400 font-medium">Jami</span><span id="statTotal" class="text-base font-bold text-slate-700">0</span></div>
+    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 shadow-sm"><span class="block text-emerald-600 font-medium">Bor</span><span id="statPresent" class="text-base font-bold text-emerald-700">0</span></div>
+    <div class="bg-rose-50 p-2.5 rounded-xl border border-rose-100 shadow-sm"><span class="block text-rose-600 font-medium">Yo'q</span><span id="statAbsent" class="text-base font-bold text-rose-700">0</span></div>
+  </div>
+
+  <!-- Admin paneli -->
+  <div id="adminPanel" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3 shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-amber-800">🛡️ Admin boshqaruvi</h2>
+
+    <div class="space-y-2">
+      <input type="text" id="newStudentName" placeholder="Yangi o'quvchi F.I.Sh." class="w-full border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
+      <div class="flex gap-2">
+        <select id="newStudentG" class="border border-amber-300 bg-white rounded-lg p-2 text-sm"><option value="m">👦 O'g'il</option><option value="f">👧 Qiz</option></select>
+        <button onclick="addStudent()" class="flex-grow bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">Qo'shish</button>
+      </div>
+    </div>
+
+    <div class="pt-2 border-t border-amber-200/60 space-y-2">
+      <label class="block text-xs font-medium text-amber-900">Ro'yxatni import qilish — qaysi bo'limga:</label>
+      <select id="importG" class="w-full border border-amber-300 bg-white rounded-lg p-2 text-sm"><option value="m">👦 O'g'il bolalar</option><option value="f">👧 Qiz bolalar</option></select>
+      <div class="flex gap-2 items-center">
+        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white cursor-pointer">
+        <button onclick="importFromExcel()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap">Import</button>
+      </div>
+      <textarea id="pasteNames" rows="3" placeholder="Yoki Excelda ismlar ustunini nusxalab shu yerga joylang (har qatorda bitta ism)" class="w-full border border-amber-300 bg-white rounded-lg p-2 text-xs focus:outline-none"></textarea>
+      <button onclick="importPasted()" class="w-full bg-amber-700 hover:bg-amber-800 text-white py-2 rounded-lg text-xs font-medium">📋 Joylangan ro'yxatni qo'shish</button>
+    </div>
+
+    <div class="pt-2 border-t border-amber-200/60 space-y-2">
+      <label class="block text-xs font-medium text-amber-900">Yangi admin biriktirish (Telegram ID):</label>
+      <div class="flex gap-2">
+        <input type="number" id="newAdminId" placeholder="Masalan: 123456789" class="flex-grow border border-amber-300 bg-white rounded-lg p-2 text-sm focus:outline-none">
+        <button onclick="addAdmin()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg text-sm font-medium">Qo'shish</button>
+      </div>
+      <div id="adminList" class="space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- Bo'limi belgilanmagan o'quvchilar -->
+  <div id="unassigned" class="hidden bg-sky-50 border border-sky-200 p-3 rounded-xl space-y-2"></div>
+
+  <!-- Ro'yxat -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center gap-2">
+      <span class="text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Ro'yxat</span>
+      <input type="text" id="searchInput" oninput="render()" placeholder="🔍 Qidirish..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500">
+    </div>
+    <div id="studentsContainer" class="divide-y divide-slate-100 max-h-[50vh] overflow-y-auto"></div>
+  </div>
+
+  <button onclick="saveDay()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-sm active:scale-95">💾 Kunlik davomatni saqlash</button>
+
+  <!-- Eksport -->
+  <div class="space-y-2 pt-2">
+    <div class="grid grid-cols-2 gap-2">
+      <select id="exScope" class="border border-slate-200 rounded-lg p-2 text-xs bg-white"><option value="all">Hammasi</option><option value="m">Faqat o'g'il bolalar</option><option value="f">Faqat qiz bolalar</option></select>
+      <select id="exType" class="border border-slate-200 rounded-lg p-2 text-xs bg-white"><option value="d">Kunlik</option><option value="o">Oylik</option></select>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-3 rounded-xl shadow-sm active:scale-95 text-xs">📊 Excel fayl yuklash</button>
+      <button onclick="copyForSheets()" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-3 rounded-xl shadow-sm active:scale-95 text-xs">📋 Excel uchun nusxalash</button>
+    </div>
+    <p class="text-[11px] text-slate-400 text-center">Fayl yuklanmasa, «Nusxalash» ni bosib, Excelga joylashtiring (Ctrl+V).</p>
+  </div>
+
+  <!-- Chiqarilganlar -->
+  <div id="removedSection" class="hidden pt-2">
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">🚪 Chiqarilgan o'quvchilar</h3>
+    <div id="removedContainer" class="bg-white rounded-xl border border-slate-100 p-3 space-y-2"></div>
+  </div>
+</main>
+
+<script>
+  // --- FIREBASE (sizning bazangiz o'zgarmadi) ---
+  firebase.initializeApp({ databaseURL: "https://yotoqxona-18a80-default-rtdb.firebaseio.com" });
+  const db = firebase.database();
+
+  // --- ASOSIY ADMINLAR (Telegram ID) ---
+  const ADMIN_IDS = [8081723573];
+
+  const tg = window.Telegram ? window.Telegram.WebApp : null;
+  if (tg) { try { tg.ready(); tg.expand(); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {} }
+
+  let me = { id: 0, firstName: "Mehmon" };
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+    me.id = tg.initDataUnsafe.user.id;
+    me.firstName = tg.initDataUnsafe.user.first_name || "Mehmon";
+  }
+  let studentsData = {}, attendanceData = {}, dutyData = {}, adminsData = {};
+  const isAdmin = () => me.id !== 0 && (ADMIN_IDS.includes(Number(me.id)) || !!adminsData[me.id]);
+  document.getElementById("userInfo").innerText = me.id ? `👤 ${me.firstName} (ID: ${me.id})` : "👤 Mehmon (Telegram orqali kiring)";
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const dk = d => { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  const dateInput = $("dateInput"), dutyInput = $("dutyTeacher");
+  dateInput.value = dk();
+  let sec = 'm';
+  const GN = { m: "👦 O'g'il bolalar", f: "👧 Qiz bolalar" };
+  const need = () => { if (isAdmin()) return true; alert("Bu amal faqat admin uchun 🔒"); return false; };
+
+  // --- REAL VAQT ---
+  db.ref("students").on("value", s => { studentsData = s.val() || {}; render(); });
+  db.ref("attendance").on("value", s => { attendanceData = s.val() || {}; render(); });
+  db.ref("dutyTeachers").on("value", s => { dutyData = s.val() || {}; dutyInput.value = dutyData[dateInput.value] || ""; });
+  db.ref("admins").on("value", s => { adminsData = s.val() || {}; render(); });
+  dateInput.addEventListener("change", () => { dutyInput.value = dutyData[dateInput.value] || ""; render(); });
+  dutyInput.addEventListener("input", e => { dutyData[dateInput.value] = e.target.value; db.ref("dutyTeachers/" + dateInput.value).set(e.target.value); });
+
+  const statusOf = id => ((attendanceData[dateInput.value] || {})[id]) || 'present';
+  const byName = (a, b) => (studentsData[a].name || '').localeCompare(studentsData[b].name || '', 'uz');
+
+  function render() {
+    const A = isAdmin(), ids = Object.keys(studentsData);
+    $("adminBadge").classList.toggle("hidden", !A);
+    $("adminPanel").classList.toggle("hidden", !A);
+    $("removedSection").classList.toggle("hidden", !A);
+
+    const inSec = ids.filter(id => studentsData[id].g === sec);
+    const active = inSec.filter(id => !studentsData[id].archived).sort(byName);
+    const removed = inSec.filter(id => studentsData[id].archived).sort(byName);
+    const noG = ids.filter(id => !studentsData[id].g);
+
+    $("tabs").innerHTML = ['m', 'f'].map(g => {
+      const n = ids.filter(id => studentsData[id].g === g && !studentsData[id].archived).length;
+      return `<button onclick="sec='${g}';render()" class="py-3 rounded-xl text-sm font-bold shadow-sm ${g === sec ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}">${GN[g]} (${n})</button>`;
+    }).join('');
+
+    const present = active.filter(id => statusOf(id) === 'present').length;
+    $("statTotal").innerText = active.length; $("statPresent").innerText = present; $("statAbsent").innerText = active.length - present;
+
+    const term = $("searchInput").value.trim().toLowerCase();
+    const list = active.filter(id => !term || studentsData[id].name.toLowerCase().includes(term));
+    $("studentsContainer").innerHTML = list.length ? list.map((id, i) => {
+      const st = statusOf(id);
+      return `<div class="p-3 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0"><span class="text-xs font-bold text-slate-400 w-6">${i + 1}.</span><span class="text-sm font-medium text-slate-700 truncate">${esc(studentsData[id].name)}</span></div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="setStatus('${id}','present')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold active:scale-95 ${st === 'present' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}">✅ Bor</button>
+          <button onclick="setStatus('${id}','absent')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold active:scale-95 ${st === 'absent' ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'}">❌ Yo'q</button>
+          ${A ? `<button onclick="removeStudent('${id}')" class="px-2 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 active:scale-95">🚪</button>` : ''}
+        </div></div>`;
+    }).join('') : `<div class="p-4 text-center text-xs text-slate-400">${ids.length ? "Bu bo'limda o'quvchi yo'q." : "Hozircha o'quvchilar yo'q."}</div>`;
+
+    $("removedContainer").innerHTML = removed.length ? removed.map(id => `
+      <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+        <span class="text-slate-500 font-medium">${esc(studentsData[id].name)}</span>
+        <div class="flex gap-3"><button onclick="restoreStudent('${id}')" class="text-emerald-600 font-semibold">↩ Qaytarish</button><button onclick="deleteStudent('${id}')" class="text-rose-600 font-semibold">O'chirish</button></div>
+      </div>`).join('') : `<span class="text-xs text-slate-400">Bu bo'limda chiqarilgan o'quvchi yo'q.</span>`;
+
+    const un = $("unassigned");
+    if (noG.length) {
+      un.classList.remove("hidden");
+      un.innerHTML = A ? `<p class="text-xs font-bold text-sky-800">Bo'limi belgilanmagan o'quvchilar (${noG.length} ta). Har birini bo'limga joylang:</p>` +
+        noG.sort(byName).map(id => `<div class="flex justify-between items-center text-xs bg-white p-2 rounded-lg"><span class="font-medium">${esc(studentsData[id].name)}</span><span class="flex gap-1"><button onclick="assignG('${id}','m')" class="bg-sky-100 px-2 py-1 rounded">👦</button><button onclick="assignG('${id}','f')" class="bg-pink-100 px-2 py-1 rounded">👧</button></span></div>`).join('')
+        : `<p class="text-xs text-sky-800">${noG.length} ta o'quvchi hali bo'limga biriktirilmagan. Admin buni sozlaydi.</p>`;
+    } else un.classList.add("hidden");
+
+    $("adminList").innerHTML = A ? ADMIN_IDS.map(i => `<div class="text-xs text-amber-900">👑 ${i} <span class="text-amber-600">(asosiy)</span></div>`).join('') +
+      Object.keys(adminsData).map(i => `<div class="text-xs text-amber-900 flex justify-between">👑 ${esc(i)} <button onclick="removeAdmin('${esc(i)}')" class="text-rose-600 font-semibold">olib tashlash</button></div>`).join('') : '';
+  }
+
+  // --- DAVOMAT ---
+  function setStatus(id, s) { db.ref(`attendance/${dateInput.value}/${id}`).set(s); }
+  function saveDay() {
+    const u = {};
+    Object.keys(studentsData).forEach(id => { if (!studentsData[id].archived) u[`attendance/${dateInput.value}/${id}`] = statusOf(id); });
+    db.ref().update(u).then(() => alert("✅ " + dateInput.value + " kuni davomati saqlandi!")).catch(e => alert("Xatolik: " + e.message));
+  }
+  function markAll(s) {
+    const u = {};
+    Object.keys(studentsData).forEach(id => { if (studentsData[id].g === sec && !studentsData[id].archived) u[`attendance/${dateInput.value}/${id}`] = s; });
+    db.ref().update(u);
+  }
+
+  // --- ADMIN AMALLARI ---
+  function addStudent() {
+    if (!need()) return;
+    const inp = $("newStudentName"), name = inp.value.trim();
+    if (!name) return alert("O'quvchi ismini kiriting!");
+    const g = $("newStudentG").value;
+    db.ref("students").push().set({ name, g, archived: false }).then(() => { inp.value = ""; sec = g; render(); }).catch(e => alert("Xatolik: " + e.message));
+  }
+  function assignG(id, g) { if (need()) db.ref(`students/${id}/g`).set(g); }
+  function removeStudent(id) { if (need() && confirm(`${studentsData[id].name} yotoqxonadan chiqarilsinmi?`)) db.ref(`students/${id}/archived`).set(true); }
+  function restoreStudent(id) { if (need()) db.ref(`students/${id}/archived`).set(false); }
+  function deleteStudent(id) { if (need() && confirm("O'quvchi bazadan butunlay o'chiriladi. Qaytarib bo'lmaydi. Davom etilsinmi?")) db.ref("students/" + id).remove(); }
+  function addAdmin() {
+    if (!need()) return;
+    const v = $("newAdminId").value.trim();
+    if (!/^\d{5,}$/.test(v)) return alert("To'g'ri Telegram ID kiriting (faqat raqamlar).");
+    db.ref("admins/" + v).set(true).then(() => $("newAdminId").value = "");
+  }
+  function removeAdmin(i) { if (need() && confirm(i + " adminlikdan olib tashlansinmi?")) db.ref("admins/" + i).remove(); }
+
+  // --- IMPORT ---
+  const HEAD = /(f\.?\s?i\.?\s?sh|^ism|familiya|sana|jins|^№|t\/r|o'quvchi|o‘quvchi)/i;
+  function namesFromRows(rows) {
+    const out = [];
+    rows.forEach(row => {
+      const c = (Array.isArray(row) ? row : [row]).find(x => typeof x === 'string' && /\p{L}/u.test(x) && x.trim().length > 2 && !HEAD.test(x.trim()));
+      if (c) out.push(c.trim().replace(/\s+/g, ' '));
+    });
+    return out;
+  }
+  function addNames(names, g) {
+    const have = new Set(Object.values(studentsData).filter(s => s.g === g).map(s => (s.name || '').toLowerCase()));
+    const u = {}; let n = 0;
+    names.forEach(nm => {
+      const k = nm.toLowerCase(); if (have.has(k)) return; have.add(k);
+      u["students/" + db.ref("students").push().key] = { name: nm, g, archived: false }; n++;
+    });
+    if (!n) return alert("Yangi o'quvchi topilmadi (hammasi ro'yxatda bor yoki fayl bo'sh).");
+    db.ref().update(u).then(() => { sec = g; render(); alert(`${n} ta o'quvchi qo'shildi ✅`); }).catch(e => alert("Xatolik: " + e.message));
+  }
+  function importFromExcel() {
+    if (!need()) return;
+    const f = $("excelFile").files[0];
+    if (!f) return alert("Iltimos, fayl tanlang!");
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        addNames(namesFromRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 })), $("importG").value);
+        $("excelFile").value = "";
+      } catch (err) { alert("Faylni o'qishda xatolik: " + err.message + "\nIsmlarni nusxalab, matn maydoniga joylang."); }
+    };
+    r.readAsArrayBuffer(f);
+  }
+  function importPasted() {
+    if (!need()) return;
+    const rows = $("pasteNames").value.split(/\r?\n/).map(l => l.split('\t'));
+    addNames(namesFromRows(rows), $("importG").value);
+    $("pasteNames").value = "";
+  }
+
+  // --- EKSPORT ---
+  function buildRows() {
+    const sc = $("exScope").value, ty = $("exType").value, d = dateInput.value;
+    const ids = Object.keys(studentsData).filter(id => !studentsData[id].archived && (sc === 'all' || studentsData[id].g === sc))
+      .sort((a, b) => studentsData[a].g === studentsData[b].g ? byName(a, b) : (studentsData[a].g === 'm' ? -1 : 1));
+    const J = id => studentsData[id].g === 'm' ? "O'g'il" : studentsData[id].g === 'f' ? "Qiz" : "Belgilanmagan";
+    if (ty === 'd') {
+      return [["№", "Sana", "Navbatchi o'qituvchi", "Bo'lim", "F.I.Sh.", "Holati"]].concat(ids.map((id, i) =>
+        [i + 1, d, dutyData[d] || "Kiritilmagan", J(id), studentsData[id].name, ((attendanceData[d] || {})[id] || 'present') === 'present' ? 'Bor' : "Yo'q"]));
+    }
+    const [y, m] = d.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = [...Array(nd)].map((_, i) => i + 1);
+    return [["№", "Bo'lim", "F.I.Sh."].concat(days, ["Bor", "Yo'q"])].concat(ids.map((id, i) => {
+      let b = 0, n = 0;
+      const cells = days.map(x => {
+        const k = y + '-' + String(m).padStart(2, '0') + '-' + String(x).padStart(2, '0');
+        if (!attendanceData[k]) return '';
+        const s = attendanceData[k][id] || 'present';
+        if (s === 'present') { b++; return '✓'; } n++; return '✗';
+      });
+      return [i + 1, J(id), studentsData[id].name].concat(cells, [b, n]);
+    }));
+  }
+  function exportToExcel() {
+    const rows = buildRows();
+    if (rows.length < 2) return alert("Yuklab olish uchun o'quvchilar topilmadi!");
+    try {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "Davomat");
+      XLSX.writeFile(wb, `Davomat_${dateInput.value}.xlsx`);
+    } catch (e) { alert("Fayl yuklanmadi. «Excel uchun nusxalash» tugmasidan foydalaning."); }
+  }
+  function copyForSheets() {
+    const rows = buildRows();
+    if (rows.length < 2) return alert("Nusxalash uchun o'quvchilar yo'q!");
+    const t = rows.map(r => r.map(c => String(c).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+    const fb = () => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); alert("✅ Nusxalandi! Excelga o'tib joylashtiring."); } catch (e) { alert("Nusxalab bo'lmadi"); } a.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => alert("✅ Nusxalandi! Excelga o'tib joylashtiring.")).catch(fb); else fb();
+  }
+  render();
+</script>
+</body>
+</html>
